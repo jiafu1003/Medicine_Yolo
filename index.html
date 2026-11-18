@@ -1,355 +1,166 @@
 
 <!DOCTYPE html>
 <html lang="zh-TW">
-
 <head>
-
 <meta charset="UTF-8">
-
-<meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
->
-
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>AI藥品拍照辨識</title>
-
 <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
 
 <style>
-
-/* =======================
-   整體
-======================= */
-
 * {
     box-sizing: border-box;
 }
 
 html,
 body {
-
     margin: 0;
-
     padding: 0;
-
     width: 100%;
-
     min-height: 100%;
-
     background: #000;
-
     color: white;
-
     text-align: center;
-
     font-family: sans-serif;
-
     overflow-x: hidden;
-
 }
 
-
-/* =======================
-   相機區域
-   JavaScript 強制 1:1
-======================= */
-
+/* 相機預覽框：使用 CSS 建立固定正方形 */
 #cameraBox {
-
     position: relative;
-
-    width: 100vw;
-
-    height: 100vw;
-
+    display: block;
+    width: 100%;
     max-width: 100%;
-
+    height: auto;
     margin: 0 auto;
-
     padding: 0;
-
     overflow: hidden;
-
     background: #000;
-
-    aspect-ratio: 1 / 1;
-
     flex-shrink: 0;
-
 }
 
-
-/* =======================
-   Video / Canvas
-======================= */
+/* 依照容器寬度建立 1:1 正方形 */
+#cameraBox::before {
+    content: "";
+    display: block;
+    width: 100%;
+    padding-top: 100%;
+}
 
 #cameraBox video,
 #cameraBox canvas {
-
     position: absolute;
-
-    left: 0;
-
-    top: 0;
-
+    inset: 0;
+    display: block;
     width: 100%;
-
     height: 100%;
-
     max-width: none;
-
     max-height: none;
-
     margin: 0;
-
     padding: 0;
-
 }
-
-
-/* =======================
-   即時相機畫面
-======================= */
 
 #cameraBox video {
-
     object-fit: cover;
-
 }
-
-
-/* =======================
-   拍照 Canvas
-======================= */
 
 #cameraBox canvas {
-
     object-fit: contain;
-
 }
-
-
-/* =======================
-   藥品數量
-======================= */
 
 #count {
-
     font-size: 26px;
-
     margin: 15px;
-
 }
-
-
-/* =======================
-   一般操作按鈕
-======================= */
 
 button {
-
     margin: 8px;
-
     padding: 12px 25px;
-
     font-size: 18px;
-
     cursor: pointer;
-
 }
-
-
-/* =======================
-   操作按鈕區
-======================= */
 
 .actionButtons {
-
     display: flex;
-
     width: 100%;
-
     justify-content: center;
-
     align-items: center;
-
     gap: 6px;
-
     margin-top: 10px;
-
 }
-
-
-/* =======================
-   三個操作按鈕
-======================= */
 
 .actionButtons button {
-
     flex: 1;
-
+    min-width: 0;
     margin: 0;
-
     padding: 10px 5px;
-
     font-size: 16px;
-
     white-space: nowrap;
-
 }
-
-
-/* =======================
-   設定區域
-======================= */
 
 .setting {
-
     margin: 10px;
-
 }
-
-
-/* =======================
-   設定標題
-======================= */
 
 .settingTitle {
-
     font-size: 18px;
-
     margin-bottom: 6px;
-
 }
-
-
-/* =======================
-   顏色按鈕
-======================= */
 
 .colorBtn {
-
     width: 42px;
-
     height: 32px;
-
     margin: 3px;
-
     padding: 0;
-
     border: 2px solid white;
-
     border-radius: 6px;
-
     cursor: pointer;
-
 }
-
 
 .colorBtn.red {
-
     background: #ff0000;
-
 }
-
 
 .colorBtn.green {
-
     background: #00cc00;
-
 }
-
 
 .colorBtn.yellow {
-
     background: #ffff00;
-
 }
-
-
-/* =======================
-   標記大小按鈕
-======================= */
 
 .optionBtn {
-
     margin: 3px;
-
     padding: 6px 12px;
-
     font-size: 15px;
-
     border: 2px solid white;
-
     border-radius: 6px;
-
     cursor: pointer;
-
     background: #333;
-
     color: white;
-
 }
-
-
-/* =======================
-   目前選擇
-======================= */
 
 .selected {
-
     border: 3px solid #00ffff !important;
-
     box-shadow: 0 0 7px #00ffff;
-
 }
-
 </style>
-
 </head>
-
 
 <body>
 
-
-<!-- =======================
-     相機
-======================= -->
-
+<!-- 相機 -->
 <div id="cameraBox">
-
-    <video
-        id="video"
-        autoplay
-        playsinline
-        muted>
-    </video>
-
+    <video id="video" autoplay playsinline muted></video>
     <canvas id="canvas"></canvas>
-
 </div>
 
+<!-- 藥品數量 -->
+<div id="count">藥品數量:0 顆</div>
 
-<!-- =======================
-     藥品數量
-======================= -->
-
-<div id="count">
-
-    藥品數量:0 顆
-
-</div>
-
-
-<!-- =======================
-     標記顏色
-======================= -->
-
+<!-- 標記顏色 -->
 <div class="setting">
-
-    <div class="settingTitle">
-        標記顏色
-    </div>
+    <div class="settingTitle">標記顏色</div>
 
     <button
         class="colorBtn red selected"
@@ -368,19 +179,11 @@ button {
         onclick="selectColor('#ffff00', this)"
         title="黃色">
     </button>
-
 </div>
 
-
-<!-- =======================
-     標記大小
-======================= -->
-
+<!-- 標記大小 -->
 <div class="setting">
-
-    <div class="settingTitle">
-        標記大小
-    </div>
+    <div class="settingTitle">標記大小</div>
 
     <button
         class="optionBtn"
@@ -399,40 +202,23 @@ button {
         onclick="selectSize(6, this)">
         6
     </button>
-
 </div>
 
-
-<!-- =======================
-     操作按鈕
-======================= -->
-
+<!-- 操作按鈕 -->
 <div class="actionButtons">
-
-    <button onclick="startCamera()">
-        開啟相機
-    </button>
-
-    <button onclick="capture()">
-        拍照辨識
-    </button>
-
-    <button onclick="resetCamera()">
-        重新拍攝
-    </button>
-
+    <button onclick="startCamera()">開啟相機</button>
+    <button onclick="capture()">拍照辨識</button>
+    <button onclick="resetCamera()">重新拍攝</button>
 </div>
-
 
 <script>
-
 
 /* =======================
    ONNX Runtime
 ======================= */
 
 ort.env.wasm.wasmPaths =
-"https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/";
+    "https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/";
 
 
 /* =======================
@@ -440,19 +226,14 @@ ort.env.wasm.wasmPaths =
 ======================= */
 
 let session = null;
-
 let stream = null;
-
 let locked = false;
-
 let cameraActive = false;
 
 let selectedColor = "red";
-
 let selectedSize = 4;
 
 let detectedPoints = [];
-
 let originalPhoto = null;
 
 
@@ -460,188 +241,68 @@ let originalPhoto = null;
    DOM
 ======================= */
 
-const video =
-document.getElementById("video");
+const video = document.getElementById("video");
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
 
-const canvas =
-document.getElementById("canvas");
-
-const ctx =
-canvas.getContext("2d");
-
-const cameraBox =
-document.getElementById("cameraBox");
-
-const countElement =
-document.getElementById("count");
+const cameraBox = document.getElementById("cameraBox");
+const countElement = document.getElementById("count");
 
 
 /* =======================
-   相機正方形校正
+   Safari 返回頁面時重新排版
 ======================= */
 
-function resizeCameraBox() {
+function refreshCameraLayout() {
 
-    /*
-        取得目前頁面寬度
-    */
+    requestAnimationFrame(() => {
 
-    const width =
-    document.documentElement.clientWidth;
+        /* 觸發瀏覽器重新計算版面 */
+        void cameraBox.offsetWidth;
 
+        /* 如果返回頁面後影片暫停，嘗試恢復播放 */
+        if (
+            cameraActive &&
+            video.srcObject &&
+            video.paused
+        ) {
+            video.play().catch(error => {
+                console.log(
+                    "返回頁面後影片尚未恢復播放:",
+                    error
+                );
+            });
+        }
 
-    /*
-        強制相機區域寬高相同
-    */
-
-    cameraBox.style.width =
-    width + "px";
-
-    cameraBox.style.height =
-    width + "px";
-
-
-    /*
-        強制正方形
-    */
-
-    cameraBox.style.aspectRatio =
-    "1 / 1";
-
-
-    /*
-        Video 填滿區域
-    */
-
-    video.style.width = "100%";
-
-    video.style.height = "100%";
-
-
-    /*
-        Canvas 填滿區域
-    */
-
-    canvas.style.width = "100%";
-
-    canvas.style.height = "100%";
-
-
-    /*
-        除錯資訊
-    */
-
-    console.log(
-        "相機顯示尺寸:",
-        cameraBox.offsetWidth,
-        cameraBox.offsetHeight
-    );
+    });
 
 }
 
-
-/* =======================
-   初次載入校正
-======================= */
-
-window.addEventListener(
-    "load",
-    function() {
-
-        resizeCameraBox();
-
-    }
-);
-
-
-/* =======================
-   iPhone Safari 返回網頁
-======================= */
-
 window.addEventListener(
     "pageshow",
-    function() {
-
-        resizeCameraBox();
-
-        requestAnimationFrame(() => {
-
-            resizeCameraBox();
-
-        });
-
-        setTimeout(() => {
-
-            resizeCameraBox();
-
-        }, 300);
-
-    }
+    refreshCameraLayout
 );
 
+window.addEventListener(
+    "resize",
+    refreshCameraLayout
+);
 
-/* =======================
-   切換 App 返回網頁
-======================= */
+window.addEventListener(
+    "orientationchange",
+    refreshCameraLayout
+);
 
 document.addEventListener(
     "visibilitychange",
-    function() {
+    () => {
 
         if (!document.hidden) {
-
-            resizeCameraBox();
-
-            requestAnimationFrame(() => {
-
-                resizeCameraBox();
-
-            });
-
-            setTimeout(() => {
-
-                resizeCameraBox();
-
-            }, 300);
-
+            refreshCameraLayout();
         }
 
     }
 );
-
-
-/* =======================
-   視窗尺寸改變
-======================= */
-
-window.addEventListener(
-    "resize",
-    resizeCameraBox
-);
-
-
-/* =======================
-   監控相機區域尺寸
-======================= */
-
-const cameraObserver =
-new ResizeObserver(() => {
-
-    const width =
-    cameraBox.offsetWidth;
-
-    const height =
-    cameraBox.offsetHeight;
-
-    if (width !== height) {
-
-        resizeCameraBox();
-
-    }
-
-});
-
-cameraObserver.observe(cameraBox);
 
 
 /* =======================
@@ -653,19 +314,12 @@ async function loadModel() {
     if (session) return;
 
     session =
-    await ort.InferenceSession.create(
-
-        "model.onnx",
-
-        {
-
-            executionProviders: [
-                "wasm"
-            ]
-
-        }
-
-    );
+        await ort.InferenceSession.create(
+            "model.onnx",
+            {
+                executionProviders: ["wasm"]
+            }
+        );
 
 }
 
@@ -682,58 +336,42 @@ async function startCamera() {
 
         await loadModel();
 
-        /*
-            停止舊相機
-        */
-
+        /* 停止舊相機 */
         if (stream) {
 
             stream.getTracks().forEach(track => {
-
                 track.stop();
-
             });
 
+            stream = null;
         }
 
+        cameraActive = false;
+        video.srcObject = null;
 
-        /*
-            開啟後置相機
-        */
-
+        /* 開啟後置相機 */
         stream =
-        await navigator.mediaDevices.getUserMedia({
+            await navigator.mediaDevices.getUserMedia({
 
-            video: {
+                video: {
 
-                facingMode: {
+                    facingMode: {
+                        ideal: "environment"
+                    },
 
-                    ideal: "environment"
+                    width: {
+                        ideal: 1280
+                    },
+
+                    height: {
+                        ideal: 720
+                    }
 
                 },
 
-                width: {
+                audio: false
 
-                    ideal: 1280
-
-                },
-
-                height: {
-
-                    ideal: 720
-
-                }
-
-            },
-
-            audio: false
-
-        });
-
-
-        /*
-            放入 Video
-        */
+            });
 
         video.srcObject = stream;
 
@@ -741,13 +379,7 @@ async function startCamera() {
 
         cameraActive = true;
 
-
-        /*
-            重新校正顯示區域
-        */
-
-        resizeCameraBox();
-
+        refreshCameraLayout();
 
         console.log(
             "相機啟動:",
@@ -780,9 +412,7 @@ function selectColor(color, button) {
     document
         .querySelectorAll(".colorBtn")
         .forEach(btn => {
-
             btn.classList.remove("selected");
-
         });
 
     button.classList.add("selected");
@@ -791,9 +421,7 @@ function selectColor(color, button) {
         detectedPoints.length > 0 &&
         originalPhoto
     ) {
-
         drawPoints();
-
     }
 
 }
@@ -810,9 +438,7 @@ function selectSize(size, button) {
     document
         .querySelectorAll(".optionBtn")
         .forEach(btn => {
-
             btn.classList.remove("selected");
-
         });
 
     button.classList.add("selected");
@@ -821,9 +447,7 @@ function selectSize(size, button) {
         detectedPoints.length > 0 &&
         originalPhoto
     ) {
-
         drawPoints();
-
     }
 
 }
@@ -845,122 +469,70 @@ async function capture() {
         alert("請先開啟相機。");
 
         return;
-
     }
 
     locked = true;
 
     try {
 
-        /*
-            先校正顯示區域
-        */
+        /* 取得目前相機真實尺寸 */
+        const videoWidth = video.videoWidth;
+        const videoHeight = video.videoHeight;
 
-        resizeCameraBox();
-
-
-        /*
-            取得目前相機真實尺寸
-        */
-
-        const videoWidth =
-        video.videoWidth;
-
-        const videoHeight =
-        video.videoHeight;
-
-
-        /*
-            中央正方形
-        */
-
+        /* 中央正方形裁切 */
         const size =
-        Math.min(
-            videoWidth,
-            videoHeight
-        );
-
+            Math.min(
+                videoWidth,
+                videoHeight
+            );
 
         const sx =
-        (videoWidth - size) / 2;
-
+            (videoWidth - size) / 2;
 
         const sy =
-        (videoHeight - size) / 2;
+            (videoHeight - size) / 2;
 
-
-        /*
-            建立原始照片
-        */
-
+        /* 建立原始照片 */
         originalPhoto =
-        document.createElement("canvas");
+            document.createElement("canvas");
 
         originalPhoto.width = size;
-
         originalPhoto.height = size;
 
-
         const photoCtx =
-        originalPhoto.getContext("2d");
-
+            originalPhoto.getContext("2d");
 
         photoCtx.drawImage(
-
             video,
-
             sx,
             sy,
-
             size,
             size,
-
             0,
             0,
-
             size,
             size
-
         );
 
-
-        /*
-            確認照片比例
-        */
-
+        /* 確認照片比例 */
         if (
             originalPhoto.width !==
             originalPhoto.height
         ) {
-
             throw new Error("照片不是 1:1");
-
         }
 
-
-        /*
-            Canvas 設定
-        */
-
+        /* Canvas 設定 */
         canvas.width = size;
-
         canvas.height = size;
 
-
         ctx.drawImage(
-
             originalPhoto,
-
             0,
             0
-
         );
 
-
-        /*
-            開始 AI
-        */
-
+        /* 開始 AI */
         await detect();
 
     }
@@ -991,21 +563,17 @@ function resetCamera() {
     locked = false;
 
     detectedPoints = [];
-
     originalPhoto = null;
 
     ctx.clearRect(
-
         0,
         0,
-
         canvas.width,
         canvas.height
-
     );
 
     countElement.innerHTML =
-    "藥品數量:0 顆";
+        "藥品數量:0 顆";
 
 }
 
@@ -1017,7 +585,7 @@ function resetCamera() {
 async function detect() {
 
     let result =
-    await runAI(originalPhoto);
+        await runAI(originalPhoto);
 
     drawResult(result);
 
@@ -1033,53 +601,40 @@ async function runAI(img) {
     const size = 640;
 
     let c =
-    document.createElement("canvas");
+        document.createElement("canvas");
 
     c.width = size;
-
     c.height = size;
 
     let cctx =
-    c.getContext("2d");
+        c.getContext("2d");
 
     let scale =
-    size / img.width;
+        size / img.width;
 
     let padX = 0;
-
     let padY = 0;
 
     cctx.drawImage(
-
         img,
-
         0,
         0,
-
         size,
         size
-
     );
 
     let pix =
-    cctx.getImageData(
-
-        0,
-        0,
-
-        size,
-        size
-
-    );
+        cctx.getImageData(
+            0,
+            0,
+            size,
+            size
+        );
 
     let input =
-    new Float32Array(
-
-        size *
-        size *
-        3
-
-    );
+        new Float32Array(
+            size * size * 3
+        );
 
     for (
         let i = 0;
@@ -1088,53 +643,41 @@ async function runAI(img) {
     ) {
 
         input[i] =
-        pix.data[i * 4] / 255;
+            pix.data[i * 4] / 255;
 
         input[i + size * size] =
-        pix.data[i * 4 + 1] / 255;
+            pix.data[i * 4 + 1] / 255;
 
         input[i + size * size * 2] =
-        pix.data[i * 4 + 2] / 255;
+            pix.data[i * 4 + 2] / 255;
 
     }
 
     let tensor =
-    new ort.Tensor(
-
-        "float32",
-
-        input,
-
-        [
-
-            1,
-
-            3,
-
-            640,
-
-            640
-
-        ]
-
-    );
+        new ort.Tensor(
+            "float32",
+            input,
+            [
+                1,
+                3,
+                640,
+                640
+            ]
+        );
 
     let output =
-    await session.run({
+        await session.run({
 
-        [session.inputNames[0]]:
-        tensor
+            [session.inputNames[0]]:
+                tensor
 
-    });
+        });
 
     return {
 
         output: output.output0,
-
         scale,
-
         padX,
-
         padY
 
     };
@@ -1148,8 +691,7 @@ async function runAI(img) {
 
 function drawResult(r) {
 
-    let data =
-    r.output.data;
+    let data = r.output.data;
 
     let total = 8400;
 
@@ -1162,27 +704,25 @@ function drawResult(r) {
     ) {
 
         let score =
-        data[i + total * 4];
+            data[i + total * 4];
 
         if (score < 0.5) {
-
             continue;
-
         }
 
         points.push({
 
             x:
-            (data[i] - r.padX) / r.scale,
+                (data[i] - r.padX) / r.scale,
 
             y:
-            (data[i + total] - r.padY) / r.scale,
+                (data[i + total] - r.padY) / r.scale,
 
             w:
-            data[i + total * 2] / r.scale,
+                data[i + total * 2] / r.scale,
 
             h:
-            data[i + total * 3] / r.scale,
+                data[i + total * 3] / r.scale,
 
             score
 
@@ -1191,23 +731,19 @@ function drawResult(r) {
     }
 
     points =
-    nms(
-
-        points,
-
-        0.35
-
-    );
+        nms(
+            points,
+            0.35
+        );
 
     detectedPoints = points;
 
     drawPoints();
 
     countElement.innerHTML =
-
-    "藥品數量:" +
-    points.length +
-    " 顆";
+        "藥品數量:" +
+        points.length +
+        " 顆";
 
 }
 
@@ -1221,25 +757,18 @@ function drawPoints() {
     if (!originalPhoto) return;
 
     ctx.clearRect(
-
         0,
         0,
-
         canvas.width,
         canvas.height
-
     );
 
     ctx.drawImage(
-
         originalPhoto,
-
         0,
         0,
-
         canvas.width,
         canvas.height
-
     );
 
     detectedPoints.forEach(p => {
@@ -1247,21 +776,14 @@ function drawPoints() {
         ctx.beginPath();
 
         ctx.arc(
-
             p.x,
-
             p.y,
-
             selectedSize,
-
             0,
-
             Math.PI * 2
-
         );
 
-        ctx.fillStyle =
-        selectedColor;
+        ctx.fillStyle = selectedColor;
 
         ctx.fill();
 
@@ -1277,10 +799,8 @@ function drawPoints() {
 function nms(boxes, t) {
 
     boxes.sort(
-
         (a, b) =>
-        b.score - a.score
-
+            b.score - a.score
     );
 
     let result = [];
@@ -1288,17 +808,15 @@ function nms(boxes, t) {
     while (boxes.length) {
 
         let best =
-        boxes.shift();
+            boxes.shift();
 
         result.push(best);
 
         boxes =
-        boxes.filter(
-
-            b =>
-            iou(best, b) < t
-
-        );
+            boxes.filter(
+                b =>
+                    iou(best, b) < t
+            );
 
     }
 
@@ -1314,56 +832,50 @@ function nms(boxes, t) {
 function iou(a, b) {
 
     let ax1 =
-    a.x - a.w / 2;
+        a.x - a.w / 2;
 
     let ay1 =
-    a.y - a.h / 2;
+        a.y - a.h / 2;
 
     let ax2 =
-    a.x + a.w / 2;
+        a.x + a.w / 2;
 
     let ay2 =
-    a.y + a.h / 2;
+        a.y + a.h / 2;
 
     let bx1 =
-    b.x - b.w / 2;
+        b.x - b.w / 2;
 
     let by1 =
-    b.y - b.h / 2;
+        b.y - b.h / 2;
 
     let bx2 =
-    b.x + b.w / 2;
+        b.x + b.w / 2;
 
     let by2 =
-    b.y + b.h / 2;
+        b.y + b.h / 2;
 
     let iw =
-    Math.max(
-
-        0,
-
-        Math.min(ax2, bx2) -
-        Math.max(ax1, bx1)
-
-    );
+        Math.max(
+            0,
+            Math.min(ax2, bx2) -
+            Math.max(ax1, bx1)
+        );
 
     let ih =
-    Math.max(
-
-        0,
-
-        Math.min(ay2, by2) -
-        Math.max(ay1, by1)
-
-    );
+        Math.max(
+            0,
+            Math.min(ay2, by2) -
+            Math.max(ay1, by1)
+        );
 
     let inter =
-    iw * ih;
+        iw * ih;
 
     let union =
-    a.w * a.h +
-    b.w * b.h -
-    inter;
+        a.w * a.h +
+        b.w * b.h -
+        inter;
 
     if (union <= 0) return 0;
 
@@ -1371,9 +883,7 @@ function iou(a, b) {
 
 }
 
-
 </script>
 
 </body>
-
 </html>
